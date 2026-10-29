@@ -1,0 +1,557 @@
+<title>AlertWan Monitor de Box</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: patio visto desde arriba como pieza central; estado en lenguaje simple arriba; detalle (señal, distancia, historial) debajo */
+:root {
+  --bg: #ECEFEC;
+  --surface: #FFFFFF;
+  --ink: #1B2127;
+  --muted: #5A6570;
+  --line: #D3D9D5;
+  --asphalt: #3B434A;
+  --asphalt-2: #4A535B;
+  --paint: #F2B705;
+  --btn: #1B2127;
+  --btn-ink: #FFFFFF;
+  --z-box: #1E9150;
+  --z-acceso: #D97F00;
+  --z-patio: #2D68D2;
+  --z-lejos: #6F7B86;
+  --z-sin: #BF3B34;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Roboto, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161A; --surface: #1B2126; --ink: #E7EBEE; --muted: #98A3AD; --line: #2B333A;
+    --asphalt: #252C32; --asphalt-2: #2F373F; --paint: #F5C02E; --btn: #F5C02E; --btn-ink: #12161A;
+    --z-box: #36C275; --z-acceso: #F2A23A; --z-patio: #5E93F0; --z-lejos: #8E99A4; --z-sin: #E2605A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161A; --surface: #1B2126; --ink: #E7EBEE; --muted: #98A3AD; --line: #2B333A;
+  --asphalt: #252C32; --asphalt-2: #2F373F; --paint: #F5C02E; --btn: #F5C02E; --btn-ink: #12161A;
+  --z-box: #36C275; --z-acceso: #F2A23A; --z-patio: #5E93F0; --z-lejos: #8E99A4; --z-sin: #E2605A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 32px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: .02em; margin: 0; text-transform: uppercase; }
+.brand h1 span { color: var(--muted); font-weight: 600; }
+.pill { font-family: var(--font-data); font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); display: inline-flex; align-items: center; gap: 6px; }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--z-lejos); display: inline-block; }
+.pill.vivo i { background: var(--z-box); }
+.pill.demo i { background: var(--paint); }
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: 600 14px var(--font-body); border-radius: 8px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+button.primario { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
+button:hover { filter: brightness(1.06); }
+button:focus-visible { outline: 3px solid var(--paint); outline-offset: 2px; }
+.aviso { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--paint); padding: 10px 14px; border-radius: 6px; font-size: 14px; }
+
+.estado { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0; border-radius: 12px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); }
+.estado .principal { padding: 18px 22px; border-left: 10px solid var(--zc, var(--z-sin)); min-width: 0; }
+.estado .etiqueta { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.estado .grande { font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 6vw, 58px); line-height: 1; margin: 6px 0 8px; color: var(--zc, var(--z-sin)); text-wrap: balance; }
+.estado .sub { color: var(--muted); font-size: 16px; }
+.estado .reloj { padding: 18px 22px; border-left: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; min-width: 220px; }
+.estado .reloj b { font-family: var(--font-data); font-weight: 500; font-size: clamp(28px, 4.4vw, 42px); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .estado { grid-template-columns: 1fr; } .estado .reloj { border-left: 0; border-top: 1px solid var(--line); min-width: 0; } }
+
+.escena { background: var(--asphalt); border-radius: 12px; overflow-x: auto; }
+.escena svg { display: block; width: 100%; height: auto; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+.fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .fila { grid-template-columns: 1fr; } }
+.tarjeta { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; min-width: 0; display: grid; gap: 10px; align-content: start; }
+.tarjeta h2 { font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .03em; text-transform: uppercase; margin: 0; }
+.dato { font-family: var(--font-data); font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.dato small { font-size: 15px; color: var(--muted); }
+.nota { font-size: 13px; color: var(--muted); }
+.barras { display: flex; align-items: flex-end; gap: 5px; height: 44px; }
+.barras i { width: 14px; border-radius: 3px; background: var(--line); display: block; }
+.barras i.on { background: var(--zc, var(--z-box)); }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.kpis div { display: grid; gap: 2px; }
+.kpis b { font-family: var(--font-data); font-weight: 500; font-size: 24px; font-variant-numeric: tabular-nums; }
+.kpis span { font-size: 13px; color: var(--muted); }
+canvas { width: 100%; height: 120px; display: block; }
+
+.doble { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .doble { grid-template-columns: 1fr; } }
+.historial { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; max-height: 360px; overflow-y: auto; }
+.historial li { display: grid; grid-template-columns: 76px 14px minmax(0, 1fr); gap: 10px; align-items: start; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.historial li:last-child { border-bottom: 0; }
+.historial time { font-family: var(--font-data); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.historial i { width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; display: block; background: var(--c, var(--z-lejos)); }
+.historial b { font-weight: 600; }
+.historial span { color: var(--muted); font-size: 13px; display: block; }
+.vacio { color: var(--muted); font-size: 14px; padding: 8px 0; }
+.calib { display: grid; gap: 8px; }
+.calib button { text-align: left; font-weight: 500; }
+.calib button.peligro { border-color: var(--z-sin); color: var(--z-sin); }
+.calib button.peligro.armado { background: var(--z-sin); color: var(--surface); }
+.calib button kbd { font-family: var(--font-data); font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin-right: 8px; }
+.consola { font-family: var(--font-data); font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; max-height: 150px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: var(--muted); }
+.form { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 10px; align-items: center; }
+.form label { font-size: 13px; color: var(--muted); }
+.form input { font: 14px var(--font-data); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); min-width: 0; width: 100%; }
+.form input:focus-visible { outline: 3px solid var(--paint); outline-offset: 1px; }
+.form select { font: 14px var(--font-body); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); min-width: 0; width: 100%; }
+.codigo { font-family: var(--font-data); font-size: 20px; font-weight: 500; letter-spacing: .06em; }
+.enlace { font-family: var(--font-data); font-size: 12px; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; user-select: all; }
+.qr { background: #FFFFFF; padding: 10px; border-radius: 8px; width: max-content; max-width: 100%; }
+.qr img, .qr canvas { display: block; max-width: 100%; height: auto; }
+.nube-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+@media (max-width: 640px) { .nube-grid { grid-template-columns: 1fr; } }
+.nube-estado { font-size: 13px; color: var(--muted); }
+.nube-estado.ok { color: var(--z-box); font-weight: 600; }
+.camion { transition: transform 1.1s ease-in-out, opacity .6s; }
+@media (prefers-reduced-motion: reduce) { .camion { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>AlertWan <span>Monitor de Box</span></h1>
+      <span class="pill" id="modoPill"><i></i><span id="modoTxt">Sin conexión</span></span>
+    </div>
+    <div class="acciones">
+      <button id="btnConfig" type="button">Configurar conexión</button>
+    </div>
+  </header>
+
+  <div class="aviso" id="aviso" hidden></div>
+
+  <section class="estado" id="estado" aria-live="polite">
+    <div class="principal">
+      <div class="etiqueta">Ahora</div>
+      <div class="grande" id="estadoTxt">Conectando...</div>
+      <div class="sub" id="estadoSub">Buscando los datos del Box en internet</div>
+    </div>
+    <div class="reloj">
+      <div class="etiqueta" id="relojEtq">Tiempo en el box</div>
+      <b id="relojVal">--:--:--</b>
+    </div>
+  </section>
+
+  <section class="escena" aria-label="Esquema del patio y el box">
+    <svg viewBox="0 0 1000 250" role="img" aria-labelledby="escenaTit">
+      <title id="escenaTit">Posición estimada del camión respecto al box</title>
+      <rect x="0" y="0" width="1000" height="250" fill="var(--asphalt)"/>
+      <rect id="zLEJOS" x="0" y="34" width="210" height="190" fill="var(--z-lejos)" opacity=".10"/>
+      <rect id="zPATIO" x="210" y="34" width="400" height="190" fill="var(--z-patio)" opacity=".10"/>
+      <rect id="zACCESO" x="610" y="34" width="150" height="190" fill="var(--z-acceso)" opacity=".10"/>
+      <rect id="zBOX" x="760" y="34" width="240" height="190" fill="var(--z-box)" opacity=".10"/>
+      <line x1="0" y1="129" x2="760" y2="129" stroke="var(--paint)" stroke-width="3" stroke-dasharray="26 22" opacity=".55"/>
+      <line x1="210" y1="34" x2="210" y2="224" stroke="var(--asphalt-2)" stroke-width="3"/>
+      <line x1="610" y1="34" x2="610" y2="224" stroke="var(--asphalt-2)" stroke-width="3"/>
+      <rect x="760" y="44" width="228" height="170" fill="none" stroke="var(--paint)" stroke-width="5"/>
+      <line x1="760" y1="44" x2="760" y2="214" stroke="var(--asphalt)" stroke-width="7"/>
+      <line x1="760" y1="44" x2="760" y2="214" stroke="var(--paint)" stroke-width="3" stroke-dasharray="10 9"/>
+      <g transform="translate(962 129)">
+        <rect x="-10" y="-14" width="20" height="28" rx="3" fill="var(--paint)"/>
+        <line x1="0" y1="-14" x2="0" y2="-34" stroke="var(--paint)" stroke-width="3"/>
+        <circle cx="0" cy="-36" r="4" fill="var(--paint)"/>
+      </g>
+      <text x="980" y="200" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--paint)">equipo box</text>
+      <g font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="700" font-size="22" letter-spacing="1">
+        <text x="105" y="25" text-anchor="middle" fill="var(--z-lejos)" id="tLEJOS">FUERA</text>
+        <text x="410" y="25" text-anchor="middle" fill="var(--z-patio)" id="tPATIO">PATIO</text>
+        <text x="685" y="25" text-anchor="middle" fill="var(--z-acceso)" id="tACCESO">ACCESO</text>
+        <text x="874" y="25" text-anchor="middle" fill="var(--z-box)" id="tBOX">BOX</text>
+      </g>
+      <g id="camion" class="camion" transform="translate(60 129)" opacity=".3">
+        <g id="camionCuerpo">
+          <rect x="-78" y="-26" width="104" height="52" rx="4" fill="#D9DEE2" stroke="#1B2127" stroke-width="2"/>
+          <rect x="30" y="-23" width="44" height="46" rx="8" fill="var(--paint)" stroke="#1B2127" stroke-width="2"/>
+          <rect x="56" y="-17" width="12" height="34" rx="3" fill="#1B2127" opacity=".75"/>
+          <rect x="-70" y="-31" width="20" height="7" rx="2" fill="#1B2127"/>
+          <rect x="-30" y="-31" width="20" height="7" rx="2" fill="#1B2127"/>
+          <rect x="38" y="-28" width="16" height="6" rx="2" fill="#1B2127"/>
+          <rect x="-70" y="24" width="20" height="7" rx="2" fill="#1B2127"/>
+          <rect x="-30" y="24" width="20" height="7" rx="2" fill="#1B2127"/>
+          <rect x="38" y="22" width="16" height="6" rx="2" fill="#1B2127"/>
+        </g>
+        <g transform="translate(0 -48)">
+          <rect x="-46" y="-15" width="92" height="24" rx="12" fill="var(--surface)" opacity=".95"/>
+          <text id="camionDist" x="0" y="3" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="var(--ink)">sin señal</text>
+        </g>
+      </g>
+    </svg>
+  </section>
+  <div class="leyenda">
+    <span><i style="background:var(--z-lejos)"></i>Fuera del patio</span>
+    <span><i style="background:var(--z-patio)"></i>Patio</span>
+    <span><i style="background:var(--z-acceso)"></i>Acceso al box</span>
+    <span><i style="background:var(--z-box)"></i>Dentro del box</span>
+    <span>La posición es aproximada: se calcula por la intensidad de la señal.</span>
+  </div>
+
+  <div class="fila">
+    <section class="tarjeta" id="tarjSenal">
+      <h2>Señal</h2>
+      <div class="barras" id="barras"><i style="height:20%"></i><i style="height:40%"></i><i style="height:60%"></i><i style="height:80%"></i><i style="height:100%"></i></div>
+      <div class="dato" id="senalVal">-- <small>dBm</small></div>
+      <div class="nota" id="senalNota">Sin datos</div>
+    </section>
+    <section class="tarjeta">
+      <h2>Distancia al box</h2>
+      <div class="dato" id="distVal">-- <small>m</small></div>
+      <canvas id="grafico" aria-label="Distancia al box en los últimos 5 minutos"></canvas>
+      <div class="nota">Últimos 5 minutos · escala logarítmica para ver bien los metros finales</div>
+    </section>
+    <section class="tarjeta">
+      <h2>Resumen</h2>
+      <div class="kpis">
+        <div><b id="kIng">0</b><span>Ingresos al box</span></div>
+        <div><b id="kSal">0</b><span>Salidas del box</span></div>
+        <div><b id="kProm">--</b><span>Tiempo promedio en box</span></div>
+        <div><b id="kUlt">--</b><span>Última permanencia</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="doble">
+    <section class="tarjeta">
+      <h2>Historial</h2>
+      <ul class="historial" id="historial"><li class="vacio">Aún no hay movimientos registrados.</li></ul>
+    </section>
+    <section class="tarjeta" id="tarjNube">
+      <h2>Conexión</h2>
+      <div class="nota">Lo más fácil es escanear el código QR que aparece en el notebook del Box. También puede escribir el código aquí.</div>
+      <div class="form">
+        <label for="nCodigo">Código</label><input id="nCodigo" placeholder="AW-XXXXXXXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
+        <label for="nServidor">Servidor</label><select id="nServidor"></select>
+      </div>
+      <div class="acciones"><button class="primario" id="btnNube" type="button">Conectar</button></div>
+      <div class="nube-estado" id="nubeEstado">Sin conectar.</div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.15.2/dist/mqtt.min.js"></script>
+<script>
+const ZONAS = {
+  SIN_SENAL: { nombre: 'Sin señal', color: '--z-sin' },
+  LEJOS: { nombre: 'Fuera del patio', color: '--z-lejos' },
+  PATIO: { nombre: 'Patio', color: '--z-patio' },
+  ACCESO: { nombre: 'Acceso al box', color: '--z-acceso' },
+  BOX: { nombre: 'Dentro del box', color: '--z-box' }
+};
+const RANGO_X = { LEJOS: [40, 200], PATIO: [250, 570], ACCESO: [640, 730], BOX: [800, 900], SIN_SENAL: [40, 40] };
+const EVENTOS = {
+  INGRESO_BOX: ['Entró al box', '--z-box'],
+  SALIDA_BOX: ['Salió del box', '--z-acceso'],
+  EN_ACCESO: ['En el acceso del box', '--z-acceso'],
+  LLEGA_PATIO: ['Llegó al patio', '--z-patio'],
+  SALE_PATIO: ['Salió del patio', '--z-lejos'],
+  DETECTADO: ['Camión detectado', '--z-patio'],
+  PERDIDO: ['Se perdió la señal', '--z-sin'],
+  SE_ACERCA: ['Se acerca', '--z-patio'],
+  SE_ALEJA: ['Se aleja', '--z-lejos']
+};
+
+const S = {
+  modo: 'desconectado', zona: 'SIN_SENAL', tend: 'DETENIDO', dbm: NaN, fuente: '-', dist: NaN, lastMed: 0,
+  boxDesde: null, ingresos: 0, salidas: 0, permanencias: [], ultimaSalida: null,
+  eventos: [], hist: [], lineas: [], consola: []
+};
+let mensajeSinConexion = ['Conectando...', 'Buscando los datos del Box en internet'];
+let tRx = 0;
+const $ = id => document.getElementById(id);
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function dosDig(n) { return String(n).padStart(2, '0'); }
+function fmtDur(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return dosDig(Math.floor(s / 3600)) + ':' + dosDig(Math.floor(s / 60) % 60) + ':' + dosDig(s % 60);
+}
+function fmtMin(seg) {
+  if (!isFinite(seg)) return '--';
+  const m = Math.floor(seg / 60), s = Math.round(seg % 60);
+  return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min ' + dosDig(s) + ' s';
+}
+function horaLocal(t) { const d = new Date(t); return dosDig(d.getHours()) + ':' + dosDig(d.getMinutes()) + ':' + dosDig(d.getSeconds()); }
+function fechaHora(t) { const d = new Date(t); return d.getFullYear() + '-' + dosDig(d.getMonth() + 1) + '-' + dosDig(d.getDate()) + ' ' + horaLocal(t); }
+function segDe(hms) { const p = (hms || '').split(':').map(Number); return p.length === 3 && p.every(isFinite) ? p[0] * 3600 + p[1] * 60 + p[2] : NaN; }
+function num(v) { const x = parseFloat(v); return isFinite(x) ? x : NaN; }
+
+function aviso(txt) { const a = $('aviso'); a.textContent = txt; a.hidden = !txt; }
+
+function estadoAmigable(z, t) {
+  if (z === 'BOX') return ['Estacionado en el box', 'El camión está dentro del box'];
+  if (z === 'ACCESO') {
+    if (t === 'ALEJANDOSE') return ['Saliendo del box', 'Está en el acceso y se aleja'];
+    if (t === 'ACERCANDOSE') return ['Entrando al box', 'Está en el acceso y se acerca'];
+    return ['En el acceso del box', 'Detenido en la entrada del box'];
+  }
+  if (z === 'PATIO') {
+    if (t === 'ACERCANDOSE') return ['Llegando al box', 'Avanza por el patio hacia el box'];
+    if (t === 'ALEJANDOSE') return ['Alejándose del box', 'Avanza por el patio hacia la salida'];
+    return ['En el patio', 'Detenido en el patio'];
+  }
+  if (z === 'LEJOS') return ['Fuera del patio', t === 'ACERCANDOSE' ? 'Viene en camino' : 'Lejos del box'];
+  return ['Camión no detectado', 'Sin señal del camión'];
+}
+
+function barrasPara(dbm, f) {
+  if (!isFinite(dbm)) return 0;
+  const lim = f === 'W' ? [-90, -80, -70, -60, -50] : [-120, -110, -100, -85, -70];
+  return lim.filter(l => dbm > l).length;
+}
+
+function posX(z, d) {
+  const r = RANGO_X[z] || RANGO_X.SIN_SENAL;
+  if (!isFinite(d)) return (r[0] + r[1]) / 2;
+  const f = Math.min(1, Math.max(0, Math.log10(Math.max(d, 1)) / Math.log10(400)));
+  const x = 900 - f * 860;
+  return Math.min(r[1], Math.max(r[0], x));
+}
+
+function render() {
+  const ahora = Date.now();
+  let z = S.zona;
+  if (S.modo === 'vivo' && ahora - S.lastMed > 4000) z = 'SIN_SENAL';
+  let [txt, sub] = estadoAmigable(z, S.tend);
+  if (S.modo === 'vivo' && S.equipoCamion) { z = 'SIN_SENAL'; txt = 'Puerto equivocado'; sub = 'Está conectado al equipo del camión. Presione "Cambiar puerto" y elija el Box.'; }
+  else if (S.modo !== 'vivo') { z = 'SIN_SENAL'; txt = mensajeSinConexion[0]; sub = mensajeSinConexion[1]; }
+  else if (z === 'SIN_SENAL' && !S.lastMed) { sub = 'Box conectado. Encienda el equipo del camión y acérquelo.'; }
+  const zc = 'var(' + ZONAS[z].color + ')';
+  $('estado').style.setProperty('--zc', zc);
+  $('estadoTxt').textContent = txt;
+  $('estadoSub').textContent = sub;
+
+  if (z === 'BOX' && S.boxDesde) { $('relojEtq').textContent = 'Tiempo en el box'; $('relojVal').textContent = fmtDur(ahora - S.boxDesde); }
+  else if (S.ultimaSalida) { $('relojEtq').textContent = 'Desde la última salida'; $('relojVal').textContent = fmtDur(ahora - S.ultimaSalida); }
+  else { $('relojEtq').textContent = 'Tiempo en el box'; $('relojVal').textContent = '--:--:--'; }
+
+  for (const k of ['LEJOS', 'PATIO', 'ACCESO', 'BOX']) {
+    $('z' + k).setAttribute('opacity', k === z ? '.38' : '.10');
+  }
+  const cam = $('camion');
+  const x = posX(z, S.dist);
+  const izq = S.tend === 'ALEJANDOSE';
+  cam.setAttribute('transform', 'translate(' + x.toFixed(0) + ' 129)');
+  cam.style.transform = 'translate(' + x.toFixed(0) + 'px, 129px)';
+  $('camionCuerpo').setAttribute('transform', izq ? 'scale(-1 1)' : '');
+  cam.setAttribute('opacity', z === 'SIN_SENAL' ? '.3' : '1');
+  $('camionDist').textContent = z === 'SIN_SENAL' ? 'sin señal' : (isFinite(S.dist) ? '~' + (S.dist < 100 ? S.dist.toFixed(1) : S.dist.toFixed(0)) + ' m' : '--');
+
+  const vivo = z !== 'SIN_SENAL';
+  const nb = vivo ? barrasPara(S.dbm, S.fuente) : 0;
+  $('tarjSenal').style.setProperty('--zc', nb >= 3 ? 'var(--z-box)' : nb === 2 ? 'var(--z-acceso)' : 'var(--z-sin)');
+  [...$('barras').children].forEach((b, i) => b.classList.toggle('on', i < nb));
+  $('senalVal').innerHTML = (vivo && isFinite(S.dbm) ? Math.round(S.dbm) : '--') + ' <small>dBm</small>';
+  $('senalNota').textContent = !vivo ? 'Sin datos del camión' :
+    (S.fuente === 'W' ? 'Medida por Wi-Fi (precisa cerca del box)' : 'Medida por LoRa (largo alcance)') + ' · ' + ['sin señal', 'muy débil', 'débil', 'aceptable', 'buena', 'excelente'][nb];
+  $('distVal').innerHTML = (vivo && isFinite(S.dist) ? '~' + (S.dist < 100 ? S.dist.toFixed(1) : S.dist.toFixed(0)) : '--') + ' <small>m</small>';
+
+  $('kIng').textContent = S.ingresos;
+  $('kSal').textContent = S.salidas;
+  const prom = S.permanencias.length ? S.permanencias.reduce((a, b) => a + b, 0) / S.permanencias.length : NaN;
+  $('kProm').textContent = fmtMin(prom);
+  $('kUlt').textContent = fmtMin(S.permanencias[S.permanencias.length - 1]);
+  dibujarGrafico(ahora);
+}
+
+function dibujarHistorial() {
+  const ul = $('historial');
+  if (!S.eventos.length) { ul.innerHTML = '<li class="vacio">Aún no hay movimientos registrados.</li>'; return; }
+  ul.innerHTML = '';
+  for (const ev of S.eventos.slice(0, 60)) {
+    const [txt, col] = EVENTOS[ev.tipo] || [ev.tipo, '--z-lejos'];
+    let det = '';
+    if (ev.tipo === 'SALIDA_BOX' && isFinite(segDe(ev.perm))) det = 'Estuvo ' + fmtMin(segDe(ev.perm)) + ' en el box';
+    else if (isFinite(ev.dist)) det = 'A ~' + (ev.dist < 100 ? ev.dist.toFixed(1) : ev.dist.toFixed(0)) + ' m del box';
+    const li = document.createElement('li');
+    li.innerHTML = '<time>' + horaLocal(ev.t) + '</time><i style="--c:var(' + col + ')"></i><div><b></b><span></span></div>';
+    li.querySelector('b').textContent = txt;
+    li.querySelector('span').textContent = det;
+    ul.appendChild(li);
+  }
+}
+
+function dibujarGrafico(ahora) {
+  const cv = $('grafico'), dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w) return;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const izq = 40, der = 6, arr = 8, aba = 16;
+  const lmin = Math.log10(1), lmax = Math.log10(500);
+  const y = d => arr + (1 - (Math.log10(Math.max(1, Math.min(500, d))) - lmin) / (lmax - lmin)) * (h - arr - aba);
+  const xT = t => izq + (1 - (ahora - t) / 300000) * (w - izq - der);
+  c.font = '11px IBM Plex Mono, monospace';
+  c.fillStyle = tok('--muted'); c.strokeStyle = tok('--line'); c.lineWidth = 1;
+  for (const d of [1, 10, 100, 500]) {
+    const yy = Math.round(y(d)) + .5;
+    c.beginPath(); c.moveTo(izq, yy); c.lineTo(w - der, yy); c.stroke();
+    c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(d + ' m', izq - 6, yy);
+  }
+  c.textAlign = 'left'; c.textBaseline = 'bottom'; c.fillText('-5 min', izq, h);
+  c.textAlign = 'right'; c.fillText('ahora', w - der, h);
+  const pts = S.hist.filter(p => ahora - p.t <= 300000);
+  if (pts.length < 2) return;
+  const col = tok('--z-patio');
+  c.beginPath();
+  pts.forEach((p, i) => { const xx = xT(p.t), yy = y(p.d); i ? c.lineTo(xx, yy) : c.moveTo(xx, yy); });
+  c.lineTo(xT(pts[pts.length - 1].t), h - aba); c.lineTo(xT(pts[0].t), h - aba); c.closePath();
+  c.globalAlpha = .12; c.fillStyle = col; c.fill(); c.globalAlpha = 1;
+  c.beginPath();
+  pts.forEach((p, i) => { const xx = xT(p.t), yy = y(p.d); i ? c.lineTo(xx, yy) : c.moveTo(xx, yy); });
+  c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+  const u = pts[pts.length - 1];
+  c.beginPath(); c.arc(xT(u.t), y(u.d), 4, 0, Math.PI * 2); c.fillStyle = col; c.fill();
+}
+
+
+/* ---------- Conexion a internet (MQTT) ---------- */
+const SERVIDORES = {
+  emqx: { nombre: 'Servidor público EMQX', url: 'wss://broker.emqx.io:8084/mqtt' },
+  hivemq: { nombre: 'Servidor público HiveMQ', url: 'wss://broker.hivemq.com:8884/mqtt' }
+};
+const URL_CELULAR = 'https://crisjotaeme.github.io/alertwan-monitor/';
+let cliente = null;
+function leerConfig(clave) { try { return JSON.parse(localStorage.getItem(clave) || '{}'); } catch (e) { return {}; } }
+function guardarConfig(clave, c) { try { localStorage.setItem(clave, JSON.stringify(c)); } catch (e) {} }
+function estadoNube(txt, ok) { const e = $('nubeEstado'); e.textContent = txt; e.className = 'nube-estado' + (ok ? ' ok' : ''); }
+function n1(x) { return isFinite(x) ? Math.round(x * 10) / 10 : null; }
+function temaBase(codigo) { return 'alertwan/' + codigo + '/'; }
+function codigoValido(c) { return /^AW-[A-Z0-9]{8,16}$/.test(c || ''); }
+function opcionesServidor(sel) {
+  sel.innerHTML = '';
+  for (const [k, v] of Object.entries(SERVIDORES)) { const o = document.createElement('option'); o.value = k; o.textContent = v.nombre; sel.appendChild(o); }
+}
+let cfgVisor = {};
+function aplicarEstado(m) {
+  tRx = m.t || 0;
+  S.modo = m.modo === 'vivo' ? 'vivo' : 'desconectado';
+  S.equipoCamion = !!m.equipoCamion;
+  S.zona = m.zona || 'SIN_SENAL';
+  S.tend = m.tend || 'DETENIDO';
+  S.dbm = m.dbm == null ? NaN : m.dbm;
+  S.fuente = m.fuente || '-';
+  S.dist = m.dist == null ? NaN : m.dist;
+  S.lastMed = m.lastMed || 0;
+  S.boxDesde = m.boxDesde || null;
+  S.ultimaSalida = m.ultimaSalida || null;
+  S.ingresos = m.ingresos || 0;
+  S.salidas = m.salidas || 0;
+  S.permanencias = Array.isArray(m.permanencias) ? m.permanencias : [];
+  if (S.modo !== 'vivo') mensajeSinConexion = ['Box sin conectar', 'El notebook está en línea, pero el Box no está conectado por USB.'];
+  if (isFinite(S.dist) && S.lastMed && (!S.hist.length || S.hist[S.hist.length - 1].t < S.lastMed)) S.hist.push({ t: S.lastMed, d: S.dist });
+  while (S.hist.length && Date.now() - S.hist[0].t > 300000) S.hist.shift();
+}
+function aplicarHistorial(arr) {
+  if (!Array.isArray(arr)) return;
+  S.eventos = arr.map(e => ({ t: e.t, tipo: e.tipo, dist: e.dist == null ? NaN : e.dist, perm: e.perm || '' }));
+  dibujarHistorial();
+}
+function aplicarGrafico(arr) {
+  if (!Array.isArray(arr)) return;
+  const base = arr.filter(p => p[1] != null).map(p => ({ t: p[0], d: p[1] }));
+  const ult = base.length ? base[base.length - 1].t : 0;
+  S.hist = base.concat(S.hist.filter(p => p.t > ult));
+}
+function vigilarFrescura() {
+  if (!tRx) return;
+  const edad = Date.now() - tRx;
+  if (edad > 10000) {
+    S.modo = 'sin_datos';
+    const min = Math.round(edad / 60000);
+    mensajeSinConexion = ['Sin datos del Box', 'El notebook dejó de publicar ' + (min < 1 ? 'hace unos segundos' : 'hace ' + min + ' min') + '. Revise que esté encendido, con internet y con "Publicar en línea" activo.'];
+    $('modoPill').className = 'pill';
+    $('modoTxt').textContent = 'Sin datos recientes';
+  } else {
+    $('modoPill').className = 'pill vivo';
+    $('modoTxt').textContent = 'En vivo';
+  }
+}
+function reiniciarVista() {
+  tRx = 0;
+  Object.assign(S, { modo: 'desconectado', zona: 'SIN_SENAL', dbm: NaN, dist: NaN, lastMed: 0, boxDesde: null, ultimaSalida: null,
+    ingresos: 0, salidas: 0, permanencias: [], eventos: [], hist: [] });
+  dibujarHistorial();
+  $('modoPill').className = 'pill';
+  $('modoTxt').textContent = 'Sin conexión';
+}
+function conectarVisor() {
+  if (typeof mqtt === 'undefined') { estadoNube('No se cargó la librería de conexión. Revise la conexión a internet y recargue la página.'); return; }
+  const codigo = $('nCodigo').value.trim().toUpperCase();
+  if (!codigoValido(codigo)) { estadoNube('El código debe tener la forma AW- seguido de letras y números, como aparece en el notebook.'); $('tarjNube').hidden = false; return; }
+  cfgVisor = { codigo, servidor: SERVIDORES[$('nServidor').value] ? $('nServidor').value : 'emqx' };
+  guardarConfig('aw_visor_box', cfgVisor);
+  if (cliente) { try { cliente.end(true); } catch (e) {} }
+  reiniciarVista();
+  const base = temaBase(cfgVisor.codigo);
+  cliente = mqtt.connect(SERVIDORES[cfgVisor.servidor].url, {
+    clientId: 'aw-celular-' + Math.random().toString(16).slice(2, 10), reconnectPeriod: 3000, connectTimeout: 10000, clean: true });
+  estadoNube('Conectando a ' + SERVIDORES[cfgVisor.servidor].nombre + '...');
+  mensajeSinConexion = ['Conectando...', 'Buscando los datos del Box en internet'];
+  cliente.on('connect', () => {
+    cliente.subscribe(base + '#');
+    estadoNube('Conectado al box ' + cfgVisor.codigo + '. Esperando datos...', true);
+    mensajeSinConexion = ['Esperando datos', 'Conectado. Si no aparece nada, revise que el notebook tenga "Publicar en línea" activo con el mismo código y servidor.'];
+  });
+  cliente.on('message', (tema, carga) => {
+    if (!tema.startsWith(base)) return;
+    let m;
+    try { m = JSON.parse(new TextDecoder().decode(carga)); } catch (e) { return; }
+    const k = tema.slice(base.length);
+    if (k === 'estado') aplicarEstado(m);
+    else if (k === 'historial') aplicarHistorial(m);
+    else if (k === 'grafico') aplicarGrafico(m);
+    if (tRx && !$('tarjNube').hidden && Date.now() - tRx < 10000) $('tarjNube').hidden = true;
+  });
+  cliente.on('reconnect', () => estadoNube('Reconectando...'));
+  cliente.on('offline', () => estadoNube('Sin internet en el celular o servidor no disponible. Reintentando...'));
+  cliente.on('error', e => estadoNube('No se pudo conectar: ' + (e && e.message ? e.message : 'error desconocido') + '.'));
+}
+function leerEnlace() {
+  const h = decodeURIComponent((location.hash || '').slice(1)).toUpperCase();
+  const [codigo, srv] = h.split('.');
+  if (!codigoValido(codigo)) return null;
+  const s = (srv || '').toLowerCase();
+  return { codigo, servidor: SERVIDORES[s] ? s : 'emqx' };
+}
+function cargarYConectar() {
+  const c = leerEnlace() || leerConfig('aw_visor_box');
+  if (c && codigoValido(c.codigo)) {
+    $('nCodigo').value = c.codigo;
+    $('nServidor').value = SERVIDORES[c.servidor] ? c.servidor : 'emqx';
+    conectarVisor();
+  } else {
+    mensajeSinConexion = ['Escanee el código QR', 'Abra esta página desde el QR que muestra el notebook del Box, o escriba el código en "Conexión".'];
+    $('tarjNube').hidden = false;
+  }
+}
+(function () {
+  opcionesServidor($('nServidor'));
+  $('btnNube').addEventListener('click', conectarVisor);
+  $('btnConfig').addEventListener('click', () => { $('tarjNube').hidden = !$('tarjNube').hidden; if (!$('tarjNube').hidden) $('tarjNube').scrollIntoView({ behavior: 'smooth' }); });
+  window.addEventListener('hashchange', cargarYConectar);
+  window.addEventListener('resize', () => dibujarGrafico(Date.now()));
+  setInterval(() => { vigilarFrescura(); render(); }, 300);
+  render();
+  cargarYConectar();
+})();
+</script>
